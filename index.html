@@ -68,11 +68,9 @@
             justify-content: center;
             transition: transform 0.2s;
         }
-
         .control-btn:hover {
             transform: scale(1.1);
         }
-
         .control-btn svg {
             width: 40px;
             height: 40px;
@@ -89,7 +87,6 @@
             cursor: pointer;
             position: relative;
         }
-
         .progress {
             height: 100%;
             background: linear-gradient(90deg, white 0%, #777 100%);
@@ -110,7 +107,6 @@
             margin-top: 20px;
             width: 100%;
         }
-
         .playlist-item {
             padding: 14px 10px;
             margin-bottom: 8px;
@@ -120,30 +116,13 @@
             font-size: 16px;
             line-height: 1.4;
         }
-
-        .playlist-item:hover {
-            background-color: #222;
-        }
-
-        .playlist-item.active {
-            background-color: #333;
-        }
+        .playlist-item:hover { background-color: #222; }
+        .playlist-item.active { background-color: #333; }
 
         @media (max-width: 400px) {
-            .control-btn {
-                width: 60px;
-                height: 60px;
-            }
-
-            .control-btn svg {
-                width: 36px;
-                height: 36px;
-            }
-
-            .track-title {
-                font-size: 16px;
-            }
-
+            .control-btn { width: 60px; height: 60px; }
+            .control-btn svg { width: 36px; height: 36px; }
+            .track-title { font-size: 16px; }
             .playlist-item {
                 font-size: 14px;
                 padding: 12px 8px;
@@ -164,22 +143,14 @@
 
         <div class="controls">
             <button id="prev-btn" class="control-btn" title="Anterior">
-                <svg viewBox="0 0 24 24">
-                    <path d="M18 20l-8.5-8L18 4v16zM6 4h2v16H6V4z" />
-                </svg>
+                <svg viewBox="0 0 24 24"><path d="M18 20l-8.5-8L18 4v16zM6 4h2v16H6V4z"/></svg>
             </button>
             <button id="play-btn" class="control-btn" title="Play/Pause">
-                <svg id="play-icon" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                </svg>
-                <svg id="pause-icon" viewBox="0 0 24 24" style="display: none;">
-                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                </svg>
+                <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <svg id="pause-icon" viewBox="0 0 24 24" style="display: none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
             </button>
             <button id="next-btn" class="control-btn" title="Próxima">
-                <svg viewBox="0 0 24 24">
-                    <path d="M6 4l8.5 8L6 20V4zm9 0h2v16h-2V4z" />
-                </svg>
+                <svg viewBox="0 0 24 24"><path d="M6 4l8.5 8L6 20V4zm9 0h2v16h-2V4z"/></svg>
             </button>
         </div>
 
@@ -192,9 +163,7 @@
             <span id="total-time">00:00</span>
         </div>
 
-        <audio id="audio-player">
-            Seu navegador não suporta o elemento de áudio.
-        </audio>
+        <audio id="audio-player">Seu navegador não suporta o elemento de áudio.</audio>
 
         <div class="playlist" id="playlist">
             <div class="playlist-item" data-src="https://archive.org/download/aluzdomundo/aluzdomundo.mp3" data-title="A Luz do Mundo">
@@ -233,22 +202,24 @@
             item.classList.add('active');
             audioPlayer.src = item.dataset.src;
             trackTitle.textContent = item.dataset.title;
+            currentIndex = index;
         }
 
         function playPause() {
-            if (!audioPlayer.src) return;
+            // Carrega e toca a primeira faixa se não houver src
+            if (!audioPlayer.src) {
+                loadTrack(0);
+            }
             isPlaying ? audioPlayer.pause() : audioPlayer.play();
         }
 
         playBtn.addEventListener('click', playPause);
         prevBtn.addEventListener('click', () => {
-            currentIndex = (currentIndex - 1 + tracks.length) % tracks.length;
-            loadTrack(currentIndex);
+            loadTrack((currentIndex - 1 + tracks.length) % tracks.length);
             audioPlayer.play();
         });
         nextBtn.addEventListener('click', () => {
-            currentIndex = (currentIndex + 1) % tracks.length;
-            loadTrack(currentIndex);
+            loadTrack((currentIndex + 1) % tracks.length);
             audioPlayer.play();
         });
 
@@ -273,8 +244,7 @@
             currentTimeDisplay.textContent = formatTime(audioPlayer.currentTime);
         });
         audioPlayer.addEventListener('ended', () => {
-            currentIndex = (currentIndex + 1) % tracks.length;
-            loadTrack(currentIndex);
+            loadTrack((currentIndex + 1) % tracks.length);
             audioPlayer.play();
         });
 
@@ -286,8 +256,7 @@
 
         playlistItems.forEach((item, idx) => {
             item.addEventListener('click', () => {
-                currentIndex = idx;
-                loadTrack(currentIndex);
+                loadTrack(idx);
                 audioPlayer.play();
             });
         });
