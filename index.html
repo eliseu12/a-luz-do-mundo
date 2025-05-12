@@ -728,23 +728,41 @@
     }
     // Envia por mailto:
     if (reportForm) {
-        reportForm.addEventListener('submit', e => {
-          e.preventDefault();
-          const reference = document.getElementById('report-ref').value;
-          const book      = document.getElementById('report-book').value;
-          const name      = document.getElementById('report-name').value.trim();
-          const email     = document.getElementById('report-email').value.trim();
-          const phone     = document.getElementById('report-phone').value.trim();
-          const message   = document.getElementById('report-message').value.trim();
-          const subject   = encodeURIComponent(`Problema no player - ${reference} / ${book}`);
-          const body      = encodeURIComponent(
-            `Referência: ${reference}\nLivro: ${book}\nNome: ${name}\nEmail: ${email}\nTelefone: ${phone}\nMensagem: ${message}`
-          );
-          // Substitua pelo seu e-mail real:
-          window.location.href = `mailto:suportearauto@gmail.com?subject=${subject}&body=${body}`;
-          reportOverlay.style.display = 'none';
-          reportDialog.style.display  = 'none';
-          reportForm.reset(); // Limpar o formulário após o envio
+       reportForm.addEventListener('submit', e => {
+  e.preventDefault();
+
+  // 1) Troque aqui pelo seu e-mail de destino:
+  const supportEmail = 'suportearauto@gmail.com';
+
+  const reference = document.getElementById('report-ref').value;
+  const book      = document.getElementById('report-book').value;
+  const name      = document.getElementById('report-name').value.trim();
+  const email     = document.getElementById('report-email').value.trim();
+  const phone     = document.getElementById('report-phone').value.trim();
+  const message   = document.getElementById('report-message').value.trim();
+
+  const subject = encodeURIComponent(
+    `Problema no player – ${reference} / ${book}`
+  );
+  const body = encodeURIComponent(
+    `Referência: ${reference}\n` +
+    `Livro: ${book}\n` +
+    `Nome: ${name}\n` +
+    `Email: ${email}\n` +
+    `Telefone: ${phone}\n\n` +
+    `${message}`
+  );
+
+  // 2) Gere o link mailto completo:
+  const mailtoLink = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
+
+  // 3) Dispare o cliente de e-mail:
+  window.open(mailtoLink);
+
+  // 4) Feche o modal e limpe o formulário
+  reportOverlay.style.display = 'none';
+  reportDialog.style.display  = 'none';
+  reportForm.reset();
         });
     }
 
