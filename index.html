@@ -83,6 +83,9 @@
       display: none; padding-left: 15px;
       border-left: 1px solid #444; margin-top: 5px;
     }
+    .menu-item#indique-btn {
+      color: #25D366; /* Cor verde do WhatsApp */
+    }
     .submenu-item {
       padding: 6px 8px; cursor: pointer;
       display: flex; align-items: center;
@@ -178,7 +181,7 @@
     .share-icon svg { width: 24px; height: 24px; fill: white; }
     .whatsapp-icon { background-color: #25D366; }
     .facebook-icon { background-color: #1877F2; }
-    .twitter-icon { background-color: #000; } /* Note: Twitter is now X, icon might need update if a specific X icon is desired */
+    .twitter-icon { background-color: #000; }
     .email-icon { background-color: #EA4335; }
     .link-icon { background-color: #5f6368; }
     .share-link {
@@ -219,22 +222,20 @@
     .report-form textarea {
       padding: 8px; border: 1px solid #444;
       border-radius: 4px; background: #111;
-      color: #fff; margin-top: 4px; resize: none; /* Added resize: none as it's common for textareas in dialogs */
+      color: #fff; margin-top: 4px; resize: none;
     }
     .report-form button {
       display: flex; align-items: center;
       justify-content: center; gap: 8px;
-      padding: 10px; background: #25D366; /* Using a green similar to WhatsApp for send action */
+      padding: 10px; background: #25D366;
       color: #fff; border: none; border-radius: 4px;
       cursor: pointer;
     }
-    /* Adicionando estilo para o botão de fechar do report dialog, similar ao .close-share */
-    .close-report { /* Este seletor estava faltando, mas é referenciado no HTML */
+    .close-report {
       position: absolute; top: 10px; right: 10px;
       background: none; border: none; color: #aaa;
       font-size: 20px; cursor: pointer;
     }
-
 
     @media (max-width: 400px) {
       .control-btn { width: 50px; height: 50px; }
@@ -341,13 +342,17 @@
             Desativar
           </div>
         </div>
-        <div class="menu-item" id="download-audio">
-          <span class="material-icons">file_download</span>
-          Baixar Capítulo
+        <div class="menu-item" id="buy-book-btn">
+          <span class="material-icons">shopping_cart</span>
+          Comprar o Livro
         </div>
         <div class="menu-item" id="share-btn">
           <span class="material-icons">share</span>
-          Compartilhar
+          Compartilhar Capítulo
+        </div>
+        <div class="menu-item" id="indique-btn">
+          <span class="material-icons">thumb_up</span>
+          Indique o Arauto+
         </div>
         <div class="menu-item" id="report-btn">
           <span class="material-icons">report_problem</span>
@@ -397,7 +402,9 @@
     <div class="playlist" id="playlist">
         <div class="playlist-item" data-src="https://archive.org/download/aluzdomundo/aluzdomundo.mp3" data-title="A Luz do Mundo">1 - A Luz do Mundo</div>
     </div>
-    </div> <div class="overlay" id="share-overlay"></div>
+  </div>
+
+  <div class="overlay" id="share-overlay"></div>
   <div class="share-dialog" id="share-dialog">
     <button class="close-share" id="close-share">&times;</button>
     <h3>Compartilhar Capítulo</h3>
@@ -407,7 +414,9 @@
       <span class="material-icons">content_copy</span>
       Copiar Link
     </button>
-  </div> <div class="overlay" id="report-overlay"></div>
+  </div>
+
+  <div class="overlay" id="report-overlay"></div>
   <div class="report-dialog" id="report-dialog">
     <button class="close-report" id="close-report">&times;</button>
     <h3>Reportar Problema</h3>
@@ -451,7 +460,6 @@
           menu          = document.getElementById('menu'),
           timerBtn      = document.getElementById('timer-btn'),
           timerSubmenu  = document.getElementById('timer-submenu'),
-          downloadBtn   = document.getElementById('download-audio'),
           shareBtn      = document.getElementById('share-btn'),
           shareDialog   = document.getElementById('share-dialog'),
           shareOverlay  = document.getElementById('share-overlay'),
@@ -463,7 +471,8 @@
 
     let currentIndex = 0,
         isPlaying    = false,
-        timerId      = null;
+        timerId      = null,
+        tempoParaRetomar = null;
 
     function formatTime(sec) {
       const m = Math.floor(sec/60),
@@ -472,6 +481,14 @@
     }
 
     function updateMetadata() {
+      if (tracks.length === 0 || !tracks[currentIndex]) {
+        document.getElementById('track-title').textContent = "Nenhuma faixa selecionada";
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = null;
+            navigator.mediaSession.playbackState = "none";
+        }
+        return;
+      }
       const title = tracks[currentIndex].dataset.title;
       document.title = `${title} – A Luz do Mundo`;
       audioPlayer.playbackRate = parseFloat(speedSelect.value);
@@ -492,37 +509,91 @@
     }
 
     function loadTrack(i) {
+      let trackIndex = parseInt(i, 10); 
+      if (isNaN(trackIndex) || tracks.length === 0 || trackIndex < 0 || trackIndex >= tracks.length) {
+        console.warn("Índice de faixa inválido ou lista de faixas vazia. Índice:", i, "Tentando faixa 0.");
+        if (tracks.length > 0) {
+            trackIndex = 0; 
+        } else {
+            document.getElementById('track-title').textContent = "Playlist vazia.";
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = null;
+                navigator.mediaSession.playbackState = "none";
+            }
+            return; 
+        }
+      }
+      
       tracks.forEach(t => t.classList.remove('active'));
-      tracks[i].classList.add('active');
-      currentIndex = i;
-      audioPlayer.src = tracks[i].dataset.src;
-      audioPlayer.load();  // força recarregar metadados
-      updateMetadata();
+      tracks[trackIndex].classList.add('active');
+      currentIndex = trackIndex;
+      localStorage.setItem('arauto_lastTrackIndex', currentIndex);
+      
+      if (audioPlayer.currentSrc !== tracks[currentIndex].dataset.src) {
+          audioPlayer.src = tracks[currentIndex].dataset.src;
+          audioPlayer.load();
+      } else {
+          updateMetadata();
+      }
       if (timerId) { clearTimeout(timerId); timerId = null; }
     }
 
     function playPause() {
-      if (!audioPlayer.src) loadTrack(0);
-      audioPlayer.paused ? audioPlayer.play() : audioPlayer.pause();
-    }
-    function prevTrack() {
-      loadTrack((currentIndex-1+tracks.length)%tracks.length);
-      audioPlayer.play();
-    }
-    function nextTrack() {
-      loadTrack((currentIndex+1)%tracks.length);
-      audioPlayer.play();
+      if (tracks.length === 0) {
+        return;
+      }
+      if (!audioPlayer.currentSrc && tracks.length > 0) {
+         loadTrack(currentIndex); 
+      }
+      
+      if (audioPlayer.paused) {
+        const playPromise = audioPlayer.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error("Erro ao executar play():", error);
+          });
+        }
+      } else {
+        audioPlayer.pause();
+      }
     }
 
-    // Eventos do áudio
+    function prevTrack() {
+      if (tracks.length === 0) return;
+      let newIndex = (currentIndex - 1 + tracks.length) % tracks.length;
+      loadTrack(newIndex);
+      audioPlayer.play().catch(e => console.error("Erro ao tocar faixa anterior:", e));
+    }
+
+    function nextTrack() {
+      if (tracks.length === 0) return;
+      let newIndex = (currentIndex + 1) % tracks.length;
+      loadTrack(newIndex);
+      audioPlayer.play().catch(e => console.error("Erro ao tocar próxima faixa:", e));
+    }
+
     audioPlayer.addEventListener('loadedmetadata', () => {
+      if (!audioPlayer.duration || isNaN(audioPlayer.duration)) {
+        totalTimeEl.textContent = "00:00";
+        return;
+      }
       totalTimeEl.textContent = formatTime(audioPlayer.duration);
+      updateMetadata(); 
+      if (tempoParaRetomar && audioPlayer.seekable && audioPlayer.seekable.length > 0) { 
+        const seekTime = Math.min(tempoParaRetomar, audioPlayer.duration);
+        if (!isNaN(seekTime)) {
+             audioPlayer.currentTime = seekTime;
+        }
+        tempoParaRetomar = null;
+      }
     });
     audioPlayer.addEventListener('timeupdate', () => {
-      if (!audioPlayer.duration) return;
-      progress.style.width = 
-        `${(audioPlayer.currentTime/audioPlayer.duration)*100}%`;
+      if (!audioPlayer.duration || isNaN(audioPlayer.duration)) return;
+      progress.style.width = `${(audioPlayer.currentTime/audioPlayer.duration)*100}%`;
       currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+      if (isPlaying && audioPlayer.currentTime > 0 && !isNaN(audioPlayer.currentTime)) { 
+        localStorage.setItem('arauto_lastTrackTime', audioPlayer.currentTime);
+      }
     });
     audioPlayer.addEventListener('play', () => {
       isPlaying = true;
@@ -537,16 +608,31 @@
       updateMetadata();
     });
     audioPlayer.addEventListener('ended', nextTrack);
+    audioPlayer.addEventListener('error', (e) => {
+        console.error("Erro no elemento de áudio:", audioPlayer.error);
+        let errorMsg = "Ocorreu um erro com o áudio.";
+        if (audioPlayer.error) {
+            switch (audioPlayer.error.code) {
+                case MediaError.MEDIA_ERR_ABORTED: errorMsg = "A reprodução do áudio foi abortada."; break;
+                case MediaError.MEDIA_ERR_NETWORK: errorMsg = "Ocorreu um erro de rede ao carregar o áudio."; break;
+                case MediaError.MEDIA_ERR_DECODE: errorMsg = "Ocorreu um erro ao decodificar o áudio."; break;
+                case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = "O formato do áudio não é suportado ou o áudio não pode ser encontrado."; break;
+            }
+        }
+        isPlaying = false; 
+        playIcon.style.display = 'inline';
+        pauseIcon.style.display = 'none';
+        updateMetadata();
+    });
 
-    // Controles
     playBtn.addEventListener('click', playPause);
     prevBtn.addEventListener('click', prevTrack);
     nextBtn.addEventListener('click', nextTrack);
 
     progressBar.addEventListener('click', e => {
+      if (!audioPlayer.duration || isNaN(audioPlayer.duration)) return;
       const rect = progressBar.getBoundingClientRect();
-      audioPlayer.currentTime =
-        ((e.clientX - rect.left)/rect.width)*audioPlayer.duration;
+      audioPlayer.currentTime = ((e.clientX - rect.left)/rect.width)*audioPlayer.duration;
     });
     speedSelect.addEventListener('change', updateMetadata);
 
@@ -557,17 +643,14 @@
       })
     );
 
-    // Temporizador
     timerBtn.addEventListener('click', e => {
       e.stopPropagation();
-      timerSubmenu.style.display =
-        timerSubmenu.style.display === 'block' ? 'none' : 'block';
+      timerSubmenu.style.display = timerSubmenu.style.display === 'block' ? 'none' : 'block';
     });
     document.querySelectorAll('#timer-submenu .submenu-item').forEach(item => {
       item.addEventListener('click', e => {
         e.stopPropagation();
-        const secs = parseInt(item.dataset.time, 10),
-              label = item.textContent.trim();
+        const secs = parseInt(item.dataset.time, 10), label = item.textContent.trim();
         if (secs > 0) {
           clearTimeout(timerId);
           timerId = setTimeout(() => {
@@ -585,36 +668,58 @@
         timerSubmenu.style.display = 'none';
       });
     });
+    
+    const buyBookBtn = document.getElementById('buy-book-btn');
+    if (buyBookBtn) {
+      buyBookBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.style.display = 'none';
+        const bookUrl = 'https://amzn.to/43gO2ZN'; // Link fornecido pelo usuário
+        window.open(bookUrl, '_blank');
+      });
+    }
 
-    // Menu geral
+    const indiqueBtn = document.getElementById('indique-btn');
+    if (indiqueBtn) {
+        indiqueBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menu.style.display = 'none';
+            const texto = `Seu amigo te indicou para conhecer o *Arauto Audiobook*! ${String.fromCodePoint(0x1F3A7)}
+            
+*TORNE-SE MEMBRO VITALÍCIO* e garanta sua edificação com os *melhores audiobooks Cristãos*!
+                
+${String.fromCodePoint(0x1F449)} Clique no link e descubra como! ${String.fromCodePoint(0x1F525)}
+
+https://arautomais.github.io/Membro-vitalicio-ilimitado/`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+        });
+    }
+
     menuBtn.addEventListener('click', e => {
       e.stopPropagation();
-      menu.style.display =
-        menu.style.display === 'block' ? 'none' : 'block';
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
     });
     document.addEventListener('click', () => {
       menu.style.display = 'none';
       timerSubmenu.style.display = 'none';
     });
 
-    // Download
-    downloadBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      if (!audioPlayer.src) return;
-      const track = tracks[currentIndex];
-      const a = document.createElement('a');
-      a.href = track.dataset.src;
-      a.download = `${track.dataset.title}.mp3`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      menu.style.display = 'none';
-    });
-
-    // Compartilhar
     function showShareDialog() {
+      if (tracks.length === 0 || !tracks[currentIndex]) return;
       const track = tracks[currentIndex];
-      shareLink.value = track.dataset.src;
+      const mensagemCompleta = `*Você nem sabe!* 💖
+
+Estava ouvindo o capítulo "${track.dataset.title}" no *Aplicativo de AudioBooks-Arauto* e imediatamente pensei em você! ✨
+
+*Vou deixar o link aqui pra você ouvir também*:
+${track.dataset.src}
+
+_Depois me conta o que achou!_ 🤗
+
+
+(*P.S.: Tem muitas outras pérolas esperando por você em*: https://arautomais.github.io/Membro-vitalicio-ilimitado/)`;
+
+      shareLink.value = mensagemCompleta;
       shareOverlay.style.display = 'block';
       shareDialog.style.display = 'block';
       shareOptions.innerHTML = '';
@@ -624,13 +729,13 @@
         ns.className = 'share-option';
         ns.innerHTML = `
           <div class="share-icon link-icon"><svg><use href="#link-icon"/></svg></div>
-          <span>Compartilhar</span>
+          <span>Compartilhar Capítulo</span>
         `;
         ns.addEventListener('click', async () => {
           try {
             await navigator.share({
-              title: track.dataset.title,
-              text: 'Ouça este capítulo: ' + track.dataset.title,
+              title: `Ouça: ${track.dataset.title}`,
+              text: `Estou ouvindo este capítulo no Aplicativo Arauto e pensei em você! 💖`,
               url: track.dataset.src
             });
             closeShareDialog();
@@ -642,21 +747,22 @@
       const socials = [
         {
           name:'WhatsApp', icon:'whatsapp-icon',
-          url:`https://wa.me/?text=${encodeURIComponent(track.dataset.title + ' - ' + track.dataset.src)}`
+          url:`https://wa.me/?text=${encodeURIComponent(mensagemCompleta)}`
         },
         {
           name:'Facebook', icon:'facebook-icon',
-          url:`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(track.dataset.src)}`
+          url:`https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent('Estou ouvindo no Arauto e pensei em você! ❤️ ' + track.dataset.title)}&u=${encodeURIComponent(track.dataset.src)}`
         },
         {
           name:'X (Twitter)', icon:'twitter-icon',
-          url:`https://twitter.com/intent/tweet?text=${encodeURIComponent(track.dataset.title)}&url=${encodeURIComponent(track.dataset.src)}`
+          url:`https://twitter.com/intent/tweet?text=${encodeURIComponent('Acabei de encontrar essa joia no @ArautoApp e pensei em você! ❤️ Ouça "' + track.dataset.title + '" aqui: ')}&url=${encodeURIComponent(track.dataset.src)}`
         },
         {
           name:'Email', icon:'email-icon',
-          url:`mailto:?subject=${encodeURIComponent(track.dataset.title)}&body=${encodeURIComponent(track.dataset.src)}`
+          url:`mailto:?subject=${encodeURIComponent('Pensei em você! ❤️ ' + track.dataset.title)}&body=${encodeURIComponent(mensagemCompleta)}`
         }
       ];
+      
       socials.forEach(s => {
         const o = document.createElement('a');
         o.className = 'share-option';
@@ -678,42 +784,39 @@
 
     shareBtn.addEventListener('click', e => {
       e.stopPropagation();
-      if (audioPlayer.src) showShareDialog();
-      menu.style.display = 'none'; // Fechar menu ao abrir compartilhar
+      if (audioPlayer.src && tracks.length > 0) showShareDialog();
+      menu.style.display = 'none';
     });
+
     closeShare.addEventListener('click', closeShareDialog);
     shareOverlay.addEventListener('click', closeShareDialog);
+
     copyLinkBtn.addEventListener('click', () => {
       shareLink.select();
-      try { // Usar try-catch para document.execCommand
+      try {
         document.execCommand('copy');
         const orig = copyLinkBtn.innerHTML;
-        copyLinkBtn.innerHTML = '<span class="material-icons">check</span> Copiado!';
+        copyLinkBtn.innerHTML = '<span class="material-icons">check</span> Mensagem copiada!';
         setTimeout(() => copyLinkBtn.innerHTML = orig, 2000);
       } catch (err) {
-        console.error('Falha ao copiar o link:', err);
-        // Poderia adicionar um feedback visual para o usuário aqui, se desejado
+        console.error('Falha ao copiar:', err);
       }
     });
 
-    // === Reportar Problema ===
-    const reportBtn     = document.getElementById('report-btn'); // Botão adicionado ao menu
+    const reportBtn     = document.getElementById('report-btn');
     const reportOverlay = document.getElementById('report-overlay');
     const reportDialog  = document.getElementById('report-dialog');
     const closeReport   = document.getElementById('close-report');
     const reportForm    = document.getElementById('report-form');
 
-    // Abre o modal de reportar problema
-    if (reportBtn) { // Adicionar verificação para garantir que o botão existe
+    if (reportBtn) {
         reportBtn.addEventListener('click', e => {
           e.stopPropagation();
           reportOverlay.style.display = 'block';
           reportDialog.style.display  = 'block';
-          menu.style.display          = 'none'; // Fechar menu principal
+          menu.style.display          = 'none';
         });
     }
-
-    // Fecha o modal de reportar problema
     if (closeReport) {
         closeReport.addEventListener('click', () => {
           reportOverlay.style.display = 'none';
@@ -726,51 +829,64 @@
           reportDialog.style.display  = 'none';
         });
     }
-    // Envia por mailto:
     if (reportForm) {
        reportForm.addEventListener('submit', e => {
-  e.preventDefault();
-
-  // 1) Troque aqui pelo seu e-mail de destino:
-  const supportEmail = 'suportearauto@gmail.com';
-
-  const reference = document.getElementById('report-ref').value;
-  const book      = document.getElementById('report-book').value;
-  const name      = document.getElementById('report-name').value.trim();
-  const email     = document.getElementById('report-email').value.trim();
-  const phone     = document.getElementById('report-phone').value.trim();
-  const message   = document.getElementById('report-message').value.trim();
-
-  const subject = encodeURIComponent(
-    `Problema no player – ${reference} / ${book}`
-  );
-  const body = encodeURIComponent(
-    `Referência: ${reference}\n` +
-    `Livro: ${book}\n` +
-    `Nome: ${name}\n` +
-    `Email: ${email}\n` +
-    `Telefone: ${phone}\n\n` +
-    `${message}`
-  );
-
-  // 2) Gere o link mailto completo:
-  const mailtoLink = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
-
-  // 3) Dispare o cliente de e-mail:
-  window.open(mailtoLink);
-
-  // 4) Feche o modal e limpe o formulário
-  reportOverlay.style.display = 'none';
-  reportDialog.style.display  = 'none';
-  reportForm.reset();
-        });
+        e.preventDefault();
+        const supportEmail = 'suportearauto@gmail.com';
+        const reference = document.getElementById('report-ref').value;
+        const book      = document.getElementById('report-book').value;
+        const name      = document.getElementById('report-name').value.trim();
+        const email     = document.getElementById('report-email').value.trim();
+        const phone     = document.getElementById('report-phone').value.trim();
+        const message   = document.getElementById('report-message').value.trim();
+        const subject = encodeURIComponent(`Problema no player – ${reference} / ${book}`);
+        const body = encodeURIComponent(`Referência: ${reference}\nLivro: ${book}\nNome: ${name}\nEmail: ${email}\nTelefone: ${phone}\n\n${message}`);
+        const mailtoLink = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
+        window.open(mailtoLink);
+        reportOverlay.style.display = 'none';
+        reportDialog.style.display  = 'none';
+        reportForm.reset();
+       });
     }
+    
+    function iniciarPlayer() {
+        const indiceSalvoStr = localStorage.getItem('arauto_lastTrackIndex');
+        const tempoSalvoStr = localStorage.getItem('arauto_lastTrackTime');
+        let indiceFinal = 0; 
 
+        if (indiceSalvoStr !== null) {
+            const indiceSalvoNum = parseInt(indiceSalvoStr, 10);
+            if (!isNaN(indiceSalvoNum) && indiceSalvoNum >= 0 && indiceSalvoNum < tracks.length) {
+                indiceFinal = indiceSalvoNum;
+                if (tempoSalvoStr) {
+                    const tempoSalvoNum = parseFloat(tempoSalvoStr);
+                    if(!isNaN(tempoSalvoNum)) {
+                       tempoParaRetomar = tempoSalvoNum;
+                    }
+                }
+            } else {
+              localStorage.removeItem('arauto_lastTrackIndex');
+              localStorage.removeItem('arauto_lastTrackTime');
+            }
+        }
+        
+        if (tracks.length > 0) {
+            loadTrack(indiceFinal); 
+        } else {
+            document.getElementById('track-title').textContent = "Nenhuma faixa na playlist";
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = null;
+                navigator.mediaSession.playbackState = "none";
+            }
+        }
+    }
+    
+    iniciarPlayer();
 
     // Registro do Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
-        .register('/service-worker.js', { scope: '/' }) // Ajuste o caminho se o seu SW estiver em outro local
+        .register('/service-worker.js', { scope: '/' }) 
         .then(() => console.log('Service Worker registrado com sucesso!'))
         .catch(err => console.error('Erro ao registrar SW:', err));
     }
